@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IELTS Writing Test - Set One</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #fff;
+    }
+    .header {
+      background-color: white;
+      padding: 15px 30px;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    .header img {
+      position: absolute;
+      right: 30px;
+    }
+    .center-timer {
+      font-weight: bold;
+      font-size: 18px;
+      color: red;
+    }
+    .part-bar {
+      background-color: #f2f4ec;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-bottom: 1px solid #ccc;
+    }
+    .tab-buttons {
+      display: flex;
+      justify-content: center;
+      border-top: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+    .tab-buttons button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      background: #eee;
+    }
+    .tab-buttons button.active {
+      background: #d0d0d0;
+    }
+    .main {
+      display: flex;
+      height: calc(100vh - 240px);
+      overflow: hidden;
+    }
+    .left, .right {
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+    .left {
+      width: 50%;
+      border-right: 4px solid #999;
+      resize: horizontal;
+      overflow: auto;
+      min-width: 250px;
+    }
+    .right {
+      width: 50%;
+      resize: horizontal;
+      min-width: 250px;
+    }
+    .image-container img {
+      width: 100%;
+      height: auto;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    textarea {
+      width: 100%;
+      height: 100%;
+      font-size: 16px;
+      padding: 10px;
+      resize: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .word-count {
+      text-align: right;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    .word-count.warning {
+      color: #d32f2f;
+    }
+    .submit-btn {
+      background-color: #0078d7;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px auto;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;
+      border-radius: 4px;
+    }
+    .submit-btn:hover {
+      background-color: #106ebe;
+    }
+    .upload-section {
+      margin-bottom: 15px;
+    }
+    .upload-section input[type="file"],
+    .upload-section textarea {
+      margin-top: 5px;
+      width: 100%;
+    }
+    .upload-section textarea {
+      height: 60px;
+    }
+    .topic-buttons {
+      margin-top: 10px;
+    }
+    .topic-buttons button {
+      padding: 8px 16px;
+      margin-right: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 4px;
+    }
+    .topic-added-btn {
+      background-color: #28a745;
+      color: white;
+      border: none;
+    }
+    .topic-added-btn:hover {
+      background-color: #218838;
+    }
+    .edit-topic-btn {
+      background-color: #ffc107;
+      color: black;
+      border: none;
+    }
+    .edit-topic-btn:hover {
+      background-color: #e0a800;
+    }
+    
+    /* Test info banner */
+    .test-info {
+      background-color: #e9f7fe;
+      padding: 10px 30px;
+      border-bottom: 1px solid #b8daff;
+      font-size: 14px;
+      color: #004085;
+    }
+    
+    /* Rules screen styles */
+    #rulesScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: white;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .rules-container {
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .rules-container h1 {
+      color: #0078d7;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .rules-container h2 {
+      color: #333;
+      margin-top: 25px;
+      margin-bottom: 10px;
+    }
+    .rules-container p, .rules-container ul {
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+    .rules-container ul {
+      padding-left: 20px;
+    }
+    .rules-container li {
+      margin-bottom: 8px;
+    }
+    .rules-container .warning {
+      background-color: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 4px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .rules-container .warning strong {
+      color: #856404;
+    }
+    .name-input {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #e9f7fe;
+      border-radius: 8px;
+      border: 2px solid #0078d7;
+    }
+    .name-input label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #0078d7;
+    }
+    .name-input input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .name-input input:focus {
+      outline: none;
+      border-color: #0078d7;
+      box-shadow: 0 0 5px rgba(0,120,215,0.3);
+    }
+    .start-button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    .start-button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+    .start-button:hover:not(:disabled) {
+      background-color: #218838;
+    }
+    
+    /* Warning modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .modal h2 {
+      color: #d32f2f;
+      margin-top: 0;
+    }
+    .modal p {
+      margin: 20px 0;
+      line-height: 1.5;
+    }
+    .modal button {
+      background-color: #d32f2f;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    
+    /* Test container initially hidden */
+    #testContainer {
+      display: none;
+    }
+    
+    /* Loading indicator */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      color: #0078d7;
+    }
+    
+    /* Task content styling */
+    .task-content {
+      margin-top: 15px;
+    }
+    .task-content p {
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .task-content .task-instructions {
+      color: #666;
+      font-style: italic;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Rules Screen -->
+  <div id="rulesScreen">
+    <div class="rules-container">
+      <h1>IELTS Writing Test - Set One</h1>
+      <h2>Test Rules and Instructions</h2>
+      <p>Please read the following rules carefully before starting your IELTS Writing Test.</p>
+      
+      <h2>Test Structure</h2>
+      <p>The IELTS Writing Test consists of two tasks:</p>
+      <ul>
+        <li><strong>Task 1:</strong> You should spend about 20 minutes on this task. Write at least 150 words.</li>
+        <li><strong>Task 2:</strong> You should spend about 40 minutes on this task. Write at least 250 words.</li>
+      </ul>
+      
+      <h2>Test Duration</h2>
+      <p>The total time for the Writing Test is 60 minutes. The timer will start when you click "I Understand" and cannot be paused.</p>
+      
+      <h2>Important Rules</h2>
+      <ul>
+        <li>You must complete both writing tasks within the 60-minute time limit.</li>
+        <li>You must write your answers in the provided text areas.</li>
+        <li>You can switch between Task 1 and Task 2 using the tabs at the bottom of the screen.</li>
+        <li>Your work will be automatically saved as a PDF when you click "Submit and Save as PDF" or when time expires.</li>
+        <li>Your answers will be sent to the examiner via Telegram for evaluation.</li>
+      </ul>
+      
+      <div class="warning">
+        <h2>⚠️ Test Security Rules</h2>
+        <p><strong>Important:</strong> To maintain test integrity, the following restrictions apply:</p>
+        <ul>
+          <li>You <strong>must not</strong> switch to other browser tabs, applications, or windows during the test.</li>
+          <li>You <strong>must not</strong> use any external resources, dictionaries, or assistance.</li>
+          <li>You <strong>must not</strong> copy, paste, or use keyboard shortcuts to open new tabs or windows.</li>
+          <li>If you attempt to leave the test window, you will receive a warning.</li>
+          <li><strong>Two violations will result in automatic test termination and submission.</strong></li>
+        </ul>
+      </div>
+      
+      <h2>Technical Requirements</h2>
+      <ul>
+        <li>Ensure you have a stable internet connection throughout the test.</li>
+        <li>Do not refresh the page or use the browser's back button during the test.</li>
+        <li>Your responses will be saved automatically in case of accidental page closure.</li>
+      </ul>
+
+      <!-- Name Input Section -->
+      <div class="name-input">
+        <label for="studentName">Enter Your Full Name (Required):</label>
+        <input type="text" id="studentName" placeholder="Please enter your full name" required>
+        <small style="color: #666; display: block; margin-top: 5px;">Your name will be included in the test submission and PDF.</small>
+      </div>
+      
+      <p>By clicking "I Understand" below, you acknowledge that you have read and agree to these rules, and you are ready to begin your IELTS Writing Test.</p>
+      
+      <button class="start-button" id="startButton" onclick="startTest()" disabled>I Understand - Start Test</button>
+    </div>
+  </div>
+
+  <!-- Test Container (initially hidden) -->
+  <div id="testContainer">
+    <div class="test-info">
+      <strong>IELTS Writing Test - Set One</strong>
+    </div>
+    
+    <div class="header">
+      <div class="center-timer" id="timer">60:00</div>
+      <div class="student-name-display" id="studentNameDisplay" style="position: absolute; left: 30px; font-weight: bold;"></div>
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/IELTS_logo.svg/2560px-IELTS_logo.svg.png" alt="IELTS" height="30">
+    </div>
+
+    <div id="partBar" class="part-bar">
+      Part 1<br>
+      You should spend about 20 minutes on this task. Write at least 150 words.
+    </div>
+
+    <div class="main" id="mainContainer">
+      <div class="left" id="left1">
+        <div class="task-content">
+          <p><strong>The diagram below shows the process of using water to produce electricity.</strong></p>
+          <p class="task-instructions">Summarise the information by selecting and reporting the main features, and make comparisons where relevant.</p>
+          <p class="task-instructions">Write at least 150 words.</p>
+          <div class="image-container">
+            <img src="https://i.ibb.co/Mx3kSPwX/Screenshot-2025-10-27-141815.png" alt="Hydroelectric Power Generation Process">
+          </div>
+        </div>
+      </div>
+      <div class="right">
+        <textarea id="textarea1" spellcheck="false" placeholder="Write your Task 1 response here..." oninput="updateWordCount('1')"></textarea>
+        <div class="word-count" id="count1">Words: 0</div>
+      </div>
+    </div>
+
+    <div class="main" id="mainContainer2" style="display: none;">
+      <div class="left" id="left2">
+        <div class="task-content">
+          <p><strong>Fewer and fewer people today write by hand using a pen or pencil.</strong></p>
+          <p class="task-instructions">What are the reasons for this? Is this a positive or a negative development?</p>
+          <p class="task-instructions">Write at least 250 words.</p>
+        </div>
+      </div>
+      <div class="right">
+        <textarea id="textarea2" spellcheck="false" placeholder="Write your Task 2 response here..." oninput="updateWordCount('2')"></textarea>
+        <div class="word-count" id="count2">Words: 0</div>
+      </div>
+    </div>
+
+    <div class="loading" id="loadingIndicator">Sending answers to examiner... Please wait.</div>
+    <button class="submit-btn" onclick="submitTest()">Submit and Save as PDF</button>
+
+    <div class="tab-buttons">
+      <button id="tab1" class="active" onclick="switchTab(1)">Part 1</button>
+      <button id="tab2" onclick="switchTab(2)">Part 2</button>
+    </div>
+  </div>
+
+  <!-- Warning modal for switching tabs/apps -->
+  <div id="warningModal" class="modal">
+    <div class="modal-content">
+      <h2>Warning: Test Violation</h2>
+      <p>You have switched to another application or tab during the test.</p>
+      <p>This is a violation of test rules. Your test will be automatically submitted now.</p>
+      <button onclick="forceSubmit()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    // Test state variables
+    let chosenTask1 = { 
+      question: "The diagram below shows the process of using water to produce electricity.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.", 
+      image: "https://i.ibb.co/Mx3kSPwX/Screenshot-2025-10-27-141815.png" 
+    };
+    let chosenTask2 = "Fewer and fewer people today write by hand using a pen or pencil. What are the reasons for this? Is this a positive or a negative development?";
+    let task1ImageData = "";
+    let totalSeconds = 60 * 60;
+    let isTestActive = false;
+    let warningCount = 0;
+    const maxWarnings = 1;
+    let timer;
+    let studentName = "";
+
+    // Initialize the page
+    function initializePage() {
+      // Show rules screen, hide test container
+      document.getElementById("rulesScreen").style.display = "flex";
+      document.getElementById("testContainer").style.display = "none";
+      
+      // Add event listener for name input
+      document.getElementById("studentName").addEventListener("input", function() {
+        const name = this.value.trim();
+        const startButton = document.getElementById("startButton");
+        startButton.disabled = name.length < 2; // Require at least 2 characters
+      });
+      
+      // Add Enter key listener for name input
+      document.getElementById("studentName").addEventListener("keypress", function(e) {
+        if (e.key === "Enter" && this.value.trim().length >= 2) {
+          startTest();
+        }
+      });
+    }
+
+    // Start the test when user clicks "I Understand"
+    function startTest() {
+      studentName = document.getElementById("studentName").value.trim();
+      
+      if (studentName.length < 2) {
+        alert("Please enter your full name to start the test.");
+        return;
+      }
+      
+      document.getElementById("rulesScreen").style.display = "none";
+      document.getElementById("testContainer").style.display = "block";
+      isTestActive = true;
+      
+      // Display student name in header
+      document.getElementById("studentNameDisplay").textContent = "Student: " + studentName;
+      
+      // Start the timer
+      startTimer();
+      
+      // Activate anti-cheating measures
+      activateAntiCheating();
+      
+      // Preload the image for PDF generation
+      preloadImage();
+    }
+
+    // Preload the image for PDF generation
+    function preloadImage() {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        task1ImageData = canvas.toDataURL('image/png');
+      };
+      img.src = chosenTask1.image;
+    }
+
+    // Start the countdown timer
+    function startTimer() {
+      const timerDisplay = document.getElementById("timer");
+      timer = setInterval(() => {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        timerDisplay.textContent = `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
+        
+        // Change color when time is running low
+        if (totalSeconds <= 300) { // 5 minutes
+          timerDisplay.style.color = "#d32f2f";
+        }
+        
+        if (totalSeconds === 0) {
+          clearInterval(timer);
+          alert("Time is up! Your work will be saved.");
+          submitTest();
+          isTestActive = false;
+        }
+        totalSeconds--;
+      }, 1000);
+    }
+
+    // Activate anti-cheating measures
+    function activateAntiCheating() {
+      // Detect tab/window switching
+      document.addEventListener("visibilitychange", function() {
+        if (document.hidden && isTestActive) {
+          handleViolation();
+        }
+      });
+
+      // Detect application switching
+      window.addEventListener("blur", function() {
+        if (isTestActive) {
+          handleViolation();
+        }
+      });
+
+      // Disable right-click context menu to prevent copying
+      document.addEventListener('contextmenu', function(e) {
+        if (isTestActive) {
+          e.preventDefault();
+          return false;
+        }
+      });
+
+      // Disable keyboard shortcuts that could be used for cheating
+      document.addEventListener('keydown', function(e) {
+        if (isTestActive) {
+          // Disable F12 (DevTools), Ctrl+Shift+I (DevTools), Ctrl+Shift+C (Inspect)
+          if (e.key === 'F12' || 
+              (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+              (e.ctrlKey && e.shiftKey && e.key === 'C')) {
+            e.preventDefault();
+            return false;
+          }
+        }
+      });
+    }
+
+    // Handle test violations
+    function handleViolation() {
+      warningCount++;
+      if (warningCount > maxWarnings) {
+        document.getElementById("warningModal").style.display = "flex";
+      } else {
+        alert("Warning: Switching tabs or applications is not allowed during the test. Further violations will result in test termination.");
+      }
+    }
+
+    // Word count and tab switching
+    let latestText1 = "", latestText2 = "";
+
+    function updateWordCount(part) {
+      const text = document.getElementById("textarea" + part).value.trim();
+      const wordCount = text === "" ? 0 : text.split(/\s+/).length;
+      const countElement = document.getElementById("count" + part);
+      countElement.textContent = "Words: " + wordCount;
+      
+      // Add warning class if word count is below minimum
+      if ((part === "1" && wordCount < 150) || (part === "2" && wordCount < 250)) {
+        countElement.classList.add("warning");
+      } else {
+        countElement.classList.remove("warning");
+      }
+      
+      if (part === "1") latestText1 = text;
+      else latestText2 = text;
+    }
+
+    function switchTab(part) {
+      document.getElementById("mainContainer").style.display = part === 1 ? "flex" : "none";
+      document.getElementById("mainContainer2").style.display = part === 2 ? "flex" : "none";
+
+      document.getElementById("tab1").classList.remove("active");
+      document.getElementById("tab2").classList.remove("active");
+      document.getElementById("tab" + part).classList.add("active");
+
+      const partText = part === 1
+        ? "Part 1<br>You should spend about 20 minutes on this task. Write at least 150 words."
+        : "Part 2<br>You should spend about 40 minutes on this task. Write at least 250 words.";
+
+      document.getElementById("partBar").innerHTML = partText;
+    }
+
+    // Submit test - sends to Telegram and downloads PDF
+    async function submitTest() {
+      // Show loading indicator
+      document.getElementById("loadingIndicator").style.display = "block";
+      
+      // Get test data
+      const testData = {
+        studentName: studentName,
+        testName: "IELTS Writing Test - Set One",
+        task1: {
+          question: chosenTask1.question,
+          answer: document.getElementById("textarea1").value,
+          wordCount: document.getElementById("count1").textContent
+        },
+        task2: {
+          question: chosenTask2,
+          answer: document.getElementById("textarea2").value,
+          wordCount: document.getElementById("count2").textContent
+        },
+        timestamp: new Date().toISOString(),
+        duration: (60 * 60 - totalSeconds) + " seconds"
+      };
+      
+      try {
+        // Send to Telegram via API
+        const response = await fetch('/api/telegram', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(testData)
+        });
+        
+        if (response.ok) {
+          console.log('Answers sent to Telegram successfully');
+        } else {
+          console.error('Failed to send answers to Telegram');
+        }
+      } catch (error) {
+        console.error('Error sending to Telegram:', error);
+      }
+      
+      // Download PDF
+      downloadPDF();
+      
+      // Hide loading indicator
+      document.getElementById("loadingIndicator").style.display = "none";
+      
+      // End test
+      isTestActive = false;
+      clearInterval(timer);
+    }
+
+    // PDF generation
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // Add test name and student name to PDF
+      doc.setFontSize(16);
+      doc.text("IELTS Writing Test - Set One", 10, 10);
+      doc.setFontSize(12);
+      doc.text(`Student: ${studentName}`, 10, 20);
+      
+      // Task 1
+      doc.setFontSize(14);
+      doc.text("IELTS Writing Task 1", 10, 30);
+      doc.setFontSize(12);
+      
+      let yOffset = 40;
+      if (chosenTask1.question) {
+        const task1Lines = doc.splitTextToSize(chosenTask1.question.replace(/\n/g, " "), 180);
+        doc.text(task1Lines, 10, yOffset);
+        yOffset += task1Lines.length * 5 + 5;
+      }
+      
+      if (task1ImageData) {
+        const img = new Image();
+        img.src = task1ImageData;
+        img.onload = function() {
+          const imgWidth = img.width;
+          const imgHeight = img.height;
+          const maxWidth = 180;
+          const maxHeight = 80;
+          let width = imgWidth;
+          let height = imgHeight;
+
+          // Maintain aspect ratio
+          if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = (maxHeight / height) * width;
+            height = maxHeight;
+          }
+
+          doc.addImage(task1ImageData, "PNG", 10, yOffset, width, height);
+          doc.text("Answer:", 10, yOffset + height + 10);
+          const answerLines = doc.splitTextToSize(document.getElementById("textarea1").value, 180);
+          doc.text(answerLines, 10, yOffset + height + 20);
+
+          // Task 2
+          doc.addPage();
+          doc.setFontSize(16);
+          doc.text("IELTS Writing Test - Set One", 10, 10);
+          doc.setFontSize(12);
+          doc.text(`Student: ${studentName}`, 10, 20);
+          doc.setFontSize(14);
+          doc.text("IELTS Writing Task 2", 10, 30);
+          doc.setFontSize(12);
+          
+          if (chosenTask2) {
+            const task2Lines = doc.splitTextToSize(chosenTask2.replace(/\n/g, " "), 180);
+            doc.text(task2Lines, 10, 40);
+            doc.text("Answer:", 10, 70);
+            const answer2Lines = doc.splitTextToSize(document.getElementById("textarea2").value, 180);
+            doc.text(answer2Lines, 10, 80);
+          } else {
+            doc.text("Answer:", 10, 40);
+            const answer2Lines = doc.splitTextToSize(document.getElementById("textarea2").value, 180);
+            doc.text(answer2Lines, 10, 50);
+          }
+
+          doc.save(`IELTS_Writing_Set_One_${studentName.replace(/\s+/g, '_')}.pdf`);
+        };
+      } else {
+        doc.text("Answer:", 10, yOffset);
+        const answerLines = doc.splitTextToSize(document.getElementById("textarea1").value, 180);
+        doc.text(answerLines, 10, yOffset + 10);
+
+        // Task 2
+        doc.addPage();
+        doc.setFontSize(16);
+        doc.text("IELTS Writing Test - Set One", 10, 10);
+        doc.setFontSize(12);
+        doc.text(`Student: ${studentName}`, 10, 20);
+        doc.setFontSize(14);
+        doc.text("IELTS Writing Task 2", 10, 30);
+        doc.setFontSize(12);
+        
+        if (chosenTask2) {
+          const task2Lines = doc.splitTextToSize(chosenTask2.replace(/\n/g, " "), 180);
+          doc.text(task2Lines, 10, 40);
+          doc.text("Answer:", 10, 70);
+          const answer2Lines = doc.splitTextToSize(document.getElementById("textarea2").value, 180);
+          doc.text(answer2Lines, 10, 80);
+        } else {
+          doc.text("Answer:", 10, 40);
+          const answer2Lines = doc.splitTextToSize(document.getElementById("textarea2").value, 180);
+          doc.text(answer2Lines, 10, 50);
+        }
+
+        doc.save(`IELTS_Writing_Set_One_${studentName.replace(/\s+/g, '_')}.pdf`);
+      }
+    }
+
+    function forceSubmit() {
+      isTestActive = false;
+      document.getElementById("warningModal").style.display = "none";
+      submitTest();
+      clearInterval(timer);
+    }
+
+    // Auto-save on page unload
+    window.onbeforeunload = function () {
+      if (isTestActive) {
+        submitTest();
+        return "Are you sure you want to refresh or leave this page?";
+      }
+    };
+
+    // Initialize the page when it loads
+    window.onload = initializePage;
+  </script>
+</body>
+</html>
