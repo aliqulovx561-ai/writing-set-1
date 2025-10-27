@@ -112,6 +112,24 @@
     .submit-btn:hover {
       background-color: #106ebe;
     }
+    .submit-btn:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+    .review-btn {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px auto;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;
+      border-radius: 4px;
+    }
+    .review-btn:hover {
+      background-color: #5a6268;
+    }
     .upload-section {
       margin-bottom: 15px;
     }
@@ -322,6 +340,17 @@
       font-style: italic;
       margin-top: 10px;
     }
+    
+    /* Submission confirmation */
+    .submission-confirmation {
+      text-align: center;
+      padding: 10px;
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 4px;
+      margin: 10px 30px;
+    }
   </style>
 </head>
 <body>
@@ -433,7 +462,13 @@
     </div>
 
     <div class="loading" id="loadingIndicator">Sending answers to examiner... Please wait.</div>
-    <button class="submit-btn" onclick="submitTest()">Submit and Save as PDF</button>
+    
+    <div id="submissionConfirmation" class="submission-confirmation" style="display: none;">
+      Test submitted successfully! You can now review your answers.
+    </div>
+    
+    <button class="submit-btn" id="submitButton" onclick="submitTest()">Submit and Save as PDF</button>
+    <button class="review-btn" id="reviewButton" onclick="reviewTest()" style="display: none;">Review Only</button>
 
     <div class="tab-buttons">
       <button id="tab1" class="active" onclick="switchTab(1)">Part 1</button>
@@ -465,6 +500,7 @@
     const maxWarnings = 1;
     let timer;
     let studentName = "";
+    let isSubmitted = false;
 
     // Initialize the page
     function initializePage() {
@@ -636,6 +672,11 @@
 
     // Submit test - sends to Telegram and downloads PDF
     async function submitTest() {
+      if (isSubmitted) {
+        alert("Test has already been submitted. You can only review your answers now.");
+        return;
+      }
+      
       // Show loading indicator
       document.getElementById("loadingIndicator").style.display = "block";
       
@@ -684,7 +725,22 @@
       
       // End test
       isTestActive = false;
+      isSubmitted = true;
       clearInterval(timer);
+      
+      // Change button to "Review Only"
+      document.getElementById("submitButton").style.display = "none";
+      document.getElementById("reviewButton").style.display = "block";
+      document.getElementById("submissionConfirmation").style.display = "block";
+      
+      // Disable text areas
+      document.getElementById("textarea1").disabled = true;
+      document.getElementById("textarea2").disabled = true;
+    }
+
+    // Review test function
+    function reviewTest() {
+      alert("You are now in review mode. You can read your answers but cannot make changes.");
     }
 
     // PDF generation
@@ -800,7 +856,7 @@
 
     // Auto-save on page unload
     window.onbeforeunload = function () {
-      if (isTestActive) {
+      if (isTestActive && !isSubmitted) {
         submitTest();
         return "Are you sure you want to refresh or leave this page?";
       }
