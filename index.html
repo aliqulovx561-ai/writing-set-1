@@ -351,6 +351,18 @@
       border-radius: 4px;
       margin: 10px 30px;
     }
+    
+    /* Typing speed indicator */
+    .typing-speed {
+      text-align: right;
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+    .typing-speed.warning {
+      color: #d32f2f;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -388,7 +400,8 @@
           <li>You <strong>must not</strong> switch to other browser tabs, applications, or windows during the test.</li>
           <li>You <strong>must not</strong> use any external resources, dictionaries, or assistance.</li>
           <li>You <strong>must not</strong> copy, paste, or use keyboard shortcuts to open new tabs or windows.</li>
-          <li>If you attempt to leave the test window, you will receive a warning.</li>
+          <li>You <strong>must not</strong> type at unrealistically high speeds or paste pre-written content.</li>
+          <li>If you attempt to leave the test window or type too fast, you will receive a warning.</li>
           <li><strong>Two violations will result in automatic test termination and submission.</strong></li>
         </ul>
       </div>
@@ -442,8 +455,9 @@
         </div>
       </div>
       <div class="right">
-        <textarea id="textarea1" spellcheck="false" placeholder="Write your Task 1 response here..." oninput="updateWordCount('1')"></textarea>
+        <textarea id="textarea1" spellcheck="false" placeholder="Write your Task 1 response here..." oninput="updateWordCount('1')" onkeydown="handleTyping('1')" onpaste="handlePaste('1')"></textarea>
         <div class="word-count" id="count1">Words: 0</div>
+        <div class="typing-speed" id="speed1">Speed: 0 WPM</div>
       </div>
     </div>
 
@@ -456,8 +470,9 @@
         </div>
       </div>
       <div class="right">
-        <textarea id="textarea2" spellcheck="false" placeholder="Write your Task 2 response here..." oninput="updateWordCount('2')"></textarea>
+        <textarea id="textarea2" spellcheck="false" placeholder="Write your Task 2 response here..." oninput="updateWordCount('2')" onkeydown="handleTyping('2')" onpaste="handlePaste('2')"></textarea>
         <div class="word-count" id="count2">Words: 0</div>
+        <div class="typing-speed" id="speed2">Speed: 0 WPM</div>
       </div>
     </div>
 
@@ -486,6 +501,16 @@
     </div>
   </div>
 
+  <!-- Warning modal for typing speed -->
+  <div id="typingWarningModal" class="modal">
+    <div class="modal-content">
+      <h2>Warning: Unusual Typing Pattern Detected</h2>
+      <p>Your typing speed appears to be unusually high, which may indicate pasting content or using assistance.</p>
+      <p>Please ensure you are typing your own responses. Further violations will result in test termination.</p>
+      <button onclick="closeTypingWarning()">I Understand</button>
+    </div>
+  </div>
+
   <script>
     // Test state variables
     let chosenTask1 = { 
@@ -497,10 +522,37 @@
     let totalSeconds = 60 * 60;
     let isTestActive = false;
     let warningCount = 0;
-    const maxWarnings = 1;
+    const maxWarnings = 2;
     let timer;
     let studentName = "";
     let isSubmitted = false;
+    let violationDetected = false;
+    let beforeUnloadTriggered = false;
+
+    // Typing speed detection variables
+    let typingData = {
+      task1: {
+        lastKeyTime: 0,
+        lastWordCount: 0,
+        keystrokes: 0,
+        lastCalculationTime: 0,
+        currentSpeed: 0,
+        speedViolations: 0
+      },
+      task2: {
+        lastKeyTime: 0,
+        lastWordCount: 0,
+        keystrokes: 0,
+        lastCalculationTime: 0,
+        currentSpeed: 0,
+        speedViolations: 0
+      }
+    };
+
+    // Typing speed thresholds (in Words Per Minute)
+    const SPEED_THRESHOLD = 120; // Very fast typing threshold
+    const PASTE_THRESHOLD = 250; // Pasting threshold (instant word increase)
+    const MAX_SPEED_VIOLATIONS = 2;
 
     // Initialize the page
     function initializePage() {
@@ -512,7 +564,7 @@
       document.getElementById("studentName").addEventListener("input", function() {
         const name = this.value.trim();
         const startButton = document.getElementById("startButton");
-        startButton.disabled = name.length < 2; // Require at least 2 characters
+        startButton.disabled = name.length < 2;
       });
       
       // Add Enter key listener for name input
@@ -547,6 +599,111 @@
       
       // Preload the image for PDF generation
       preloadImage();
+      
+      // Initialize typing speed monitoring
+      initializeTypingMonitoring();
+    }
+
+    // Initialize typing speed monitoring
+    function initializeTypingMonitoring() {
+      // Start periodic speed calculation
+      setInterval(() => {
+        calculateTypingSpeed('1');
+        calculateTypingSpeed('2');
+      }, 3000); // Calculate every 3 seconds
+    }
+
+    // Handle typing events
+    function handleTyping(task) {
+      if (!isTestActive || isSubmitted) return;
+      
+      const now = Date.now();
+      const data = typingData[`task${task}`];
+      
+      // Detect rapid typing
+      if (data.lastKeyTime > 0) {
+        const timeDiff = now - data.lastKeyTime;
+        if (timeDiff < 50) { // Less than 50ms between keystrokes = suspicious
+          data.keystrokes++;
+        }
+      }
+      
+      data.lastKeyTime = now;
+      data.keystrokes++;
+    }
+
+    // Handle paste events
+    function handlePaste(task) {
+      if (!isTestActive || isSubmitted) return;
+      
+      const data = typingData[`task${task}`];
+      const textarea = document.getElementById(`textarea${task}`);
+      const beforePasteWords = textarea.value.trim().split(/\s+/).length;
+      
+      // Use setTimeout to check word count after paste
+      setTimeout(() => {
+        const afterPasteWords = textarea.value.trim().split(/\s+/).length;
+        const wordIncrease = afterPasteWords - beforePasteWords;
+        
+        if (wordIncrease > 10) { // If more than 10 words added instantly
+          handleTypingViolation(task, `Pasted ${wordIncrease} words detected`);
+        }
+      }, 100);
+    }
+
+    // Calculate typing speed
+    function calculateTypingSpeed(task) {
+      const data = typingData[`task${task}`];
+      const now = Date.now();
+      const textarea = document.getElementById(`textarea${task}`);
+      const currentWordCount = textarea.value.trim().split(/\s+/).length;
+      
+      if (data.lastCalculationTime > 0) {
+        const timeDiff = (now - data.lastCalculationTime) / 1000 / 60; // Convert to minutes
+        const wordDiff = currentWordCount - data.lastWordCount;
+        
+        if (timeDiff > 0) {
+          data.currentSpeed = Math.round(wordDiff / timeDiff);
+          
+          // Update speed display
+          const speedElement = document.getElementById(`speed${task}`);
+          speedElement.textContent = `Speed: ${data.currentSpeed} WPM`;
+          
+          // Check if speed is suspicious
+          if (data.currentSpeed > SPEED_THRESHOLD && wordDiff > 5) {
+            speedElement.classList.add('warning');
+            handleTypingViolation(task, `High typing speed: ${data.currentSpeed} WPM`);
+          } else {
+            speedElement.classList.remove('warning');
+          }
+        }
+      }
+      
+      data.lastCalculationTime = now;
+      data.lastWordCount = currentWordCount;
+      data.keystrokes = 0;
+    }
+
+    // Handle typing violations
+    function handleTypingViolation(task, reason) {
+      const data = typingData[`task${task}`];
+      data.speedViolations++;
+      
+      console.log(`Typing violation in Task ${task}: ${reason}. Violations: ${data.speedViolations}`);
+      
+      if (data.speedViolations >= MAX_SPEED_VIOLATIONS) {
+        // Count as a general violation
+        handleViolation();
+        data.speedViolations = 0; // Reset after counting as violation
+      } else if (data.speedViolations === 1) {
+        // Show warning for first typing violation
+        document.getElementById("typingWarningModal").style.display = "flex";
+      }
+    }
+
+    // Close typing warning modal
+    function closeTypingWarning() {
+      document.getElementById("typingWarningModal").style.display = "none";
     }
 
     // Preload the image for PDF generation
@@ -572,8 +729,7 @@
         const seconds = totalSeconds % 60;
         timerDisplay.textContent = `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
         
-        // Change color when time is running low
-        if (totalSeconds <= 300) { // 5 minutes
+        if (totalSeconds <= 300) {
           timerDisplay.style.color = "#d32f2f";
         }
         
@@ -591,14 +747,14 @@
     function activateAntiCheating() {
       // Detect tab/window switching
       document.addEventListener("visibilitychange", function() {
-        if (document.hidden && isTestActive) {
+        if (document.hidden && isTestActive && !violationDetected) {
           handleViolation();
         }
       });
 
       // Detect application switching
       window.addEventListener("blur", function() {
-        if (isTestActive) {
+        if (isTestActive && !violationDetected) {
           handleViolation();
         }
       });
@@ -614,10 +770,11 @@
       // Disable keyboard shortcuts that could be used for cheating
       document.addEventListener('keydown', function(e) {
         if (isTestActive) {
-          // Disable F12 (DevTools), Ctrl+Shift+I (DevTools), Ctrl+Shift+C (Inspect)
           if (e.key === 'F12' || 
               (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-              (e.ctrlKey && e.shiftKey && e.key === 'C')) {
+              (e.ctrlKey && e.shiftKey && e.key === 'C') ||
+              (e.ctrlKey && e.key === 'c') ||
+              (e.ctrlKey && e.key === 'v')) {
             e.preventDefault();
             return false;
           }
@@ -627,11 +784,18 @@
 
     // Handle test violations
     function handleViolation() {
+      violationDetected = true;
+      
       warningCount++;
-      if (warningCount > maxWarnings) {
+      
+      if (warningCount >= maxWarnings) {
         document.getElementById("warningModal").style.display = "flex";
       } else {
-        alert("Warning: Switching tabs or applications is not allowed during the test. Further violations will result in test termination.");
+        alert(`Warning ${warningCount}/${maxWarnings}: Switching tabs or applications is not allowed during the test. \n\nNext violation will result in automatic test termination.`);
+        
+        setTimeout(() => {
+          violationDetected = false;
+        }, 1000);
       }
     }
 
@@ -644,7 +808,6 @@
       const countElement = document.getElementById("count" + part);
       countElement.textContent = "Words: " + wordCount;
       
-      // Add warning class if word count is below minimum
       if ((part === "1" && wordCount < 150) || (part === "2" && wordCount < 250)) {
         countElement.classList.add("warning");
       } else {
@@ -677,29 +840,33 @@
         return;
       }
       
-      // Show loading indicator
       document.getElementById("loadingIndicator").style.display = "block";
       
-      // Get test data
       const testData = {
         studentName: studentName,
         testName: "IELTS Writing Test - Set One",
         task1: {
           question: chosenTask1.question,
           answer: document.getElementById("textarea1").value,
-          wordCount: document.getElementById("count1").textContent
+          wordCount: document.getElementById("count1").textContent,
+          typingSpeed: typingData.task1.currentSpeed
         },
         task2: {
           question: chosenTask2,
           answer: document.getElementById("textarea2").value,
-          wordCount: document.getElementById("count2").textContent
+          wordCount: document.getElementById("count2").textContent,
+          typingSpeed: typingData.task2.currentSpeed
         },
         timestamp: new Date().toISOString(),
-        duration: (60 * 60 - totalSeconds) + " seconds"
+        duration: (60 * 60 - totalSeconds) + " seconds",
+        violations: warningCount,
+        typingViolations: {
+          task1: typingData.task1.speedViolations,
+          task2: typingData.task2.speedViolations
+        }
       };
       
       try {
-        // Send to Telegram via API
         const response = await fetch('/api/telegram', {
           method: 'POST',
           headers: {
@@ -717,23 +884,18 @@
         console.error('Error sending to Telegram:', error);
       }
       
-      // Download PDF
       downloadPDF();
       
-      // Hide loading indicator
       document.getElementById("loadingIndicator").style.display = "none";
       
-      // End test
       isTestActive = false;
       isSubmitted = true;
       clearInterval(timer);
       
-      // Change button to "Review Only"
       document.getElementById("submitButton").style.display = "none";
       document.getElementById("reviewButton").style.display = "block";
       document.getElementById("submissionConfirmation").style.display = "block";
       
-      // Disable text areas
       document.getElementById("textarea1").disabled = true;
       document.getElementById("textarea2").disabled = true;
     }
@@ -748,13 +910,11 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
-      // Add test name and student name to PDF
       doc.setFontSize(16);
       doc.text("IELTS Writing Test - Set One", 10, 10);
       doc.setFontSize(12);
       doc.text(`Student: ${studentName}`, 10, 20);
       
-      // Task 1
       doc.setFontSize(14);
       doc.text("IELTS Writing Task 1", 10, 30);
       doc.setFontSize(12);
@@ -777,7 +937,6 @@
           let width = imgWidth;
           let height = imgHeight;
 
-          // Maintain aspect ratio
           if (width > maxWidth) {
             height = (maxWidth / width) * height;
             width = maxWidth;
@@ -792,7 +951,6 @@
           const answerLines = doc.splitTextToSize(document.getElementById("textarea1").value, 180);
           doc.text(answerLines, 10, yOffset + height + 20);
 
-          // Task 2
           doc.addPage();
           doc.setFontSize(16);
           doc.text("IELTS Writing Test - Set One", 10, 10);
@@ -821,7 +979,6 @@
         const answerLines = doc.splitTextToSize(document.getElementById("textarea1").value, 180);
         doc.text(answerLines, 10, yOffset + 10);
 
-        // Task 2
         doc.addPage();
         doc.setFontSize(16);
         doc.text("IELTS Writing Test - Set One", 10, 10);
@@ -849,18 +1006,27 @@
 
     function forceSubmit() {
       isTestActive = false;
+      violationDetected = false;
       document.getElementById("warningModal").style.display = "none";
       submitTest();
       clearInterval(timer);
     }
 
-    // Auto-save on page unload
-    window.onbeforeunload = function () {
-      if (isTestActive && !isSubmitted) {
-        submitTest();
-        return "Are you sure you want to refresh or leave this page?";
+    // Improved page unload handler
+    window.onbeforeunload = function (e) {
+      if (isTestActive && !isSubmitted && !beforeUnloadTriggered) {
+        const message = "Are you sure you want to leave? Your test progress may be lost.";
+        e.returnValue = message;
+        return message;
       }
     };
+
+    window.addEventListener('unload', function() {
+      if (isTestActive && !isSubmitted && !beforeUnloadTriggered) {
+        beforeUnloadTriggered = true;
+        submitTest();
+      }
+    });
 
     // Initialize the page when it loads
     window.onload = initializePage;
