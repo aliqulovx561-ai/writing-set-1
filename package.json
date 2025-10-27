@@ -1,0 +1,10 @@
+{
+  "name": "writing-set-one",
+  "version": "1.0.0",
+  "description": "IELTS Writing Test with Telegram integration",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
